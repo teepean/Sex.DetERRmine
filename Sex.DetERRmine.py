@@ -78,6 +78,7 @@ if args.SampleList != None:
     NrAut  = [0 for x in range(len(Names))]
     NrX    = [0 for x in range(len(Names))]
     NrY    = [0 for x in range(len(Names))]
+    # Totals = [0 for x in range(len(Names))]
     
 Reads={}
 AutSnps=0
@@ -97,6 +98,7 @@ for line in args.Input:
             NrAut  = [0 for x in range(len(Names))]
             NrX    = [0 for x in range(len(Names))]
             NrY    = [0 for x in range(len(Names))]
+            # Totals = [0 for x in range(len(Names))]
             continue
         else:
             continue
@@ -108,6 +110,7 @@ for line in args.Input:
     if Chrom == "X":
         XSnps+=1
     for x in Names:
+        # Totals[Names[x]]+=depths[Names[x]]
         if Chrom != "Y" and Chrom != "X":
             NrAut[Names[x]]+=depths[Names[x]]
         if Chrom == "Y":
@@ -121,8 +124,10 @@ Input depth file is empty. Stopping execution.
 
 Please ensure you are using a bed file compatible with your reference genome coordinates.""")
 
+# SortNames=OrderedDict(sorted(Names.items(), key=lambda t: t[1]))
 print ("#Sample", "#SnpsAut", "#SNPsX", "#SnpsY", "NrAut", "NrX", "NrY", "x-rate", "y-rate", "Err(x-rate)", "Err(y-rate)", "Sex", sep="\t", file=sys.stdout)
 data=OrderedDict()
+# Add in proper tool version info to JSON output
 data['Metadata'] = {'tool_name' : "Sex.DetERRmine", "version" : VERSION}
 for Ind in Names:
     rate,rateErr=CalcErrors(AutSnps, XSnps, YSnps, NrAut[Names[Ind]], NrX[Names[Ind]], NrY[Names[Ind]])
@@ -143,5 +148,7 @@ for Ind in Names:
     print (Ind, AutSnps, XSnps, YSnps, NrAut[Names[Ind]], NrX[Names[Ind]], NrY[Names[Ind]], 
            rate["X"], rate["Y"], rateErr["X"], rateErr["Y"], sex_estimate, sep="\t", file=sys.stdout)
     
+#Debugging purposes only
+#print(json.dumps(data, indent=4, sort_keys=True))
 with open('sexdeterrmine.json', 'w') as outfile:
     json.dump(data, outfile)
