@@ -3,7 +3,29 @@ import sys, argparse, json
 from math import sqrt
 from collections import OrderedDict
 
-VERSION="1.1.2"
+VERSION="1.1.3"
+
+def determine_sex(rate_x, rate_y):
+    """
+    Determine biological sex based on X and Y chromosome coverage ratios
+    
+    Parameters:
+    rate_x: X/Autosome coverage ratio
+    rate_y: Y/Autosome coverage ratio
+    
+    Returns:
+    str: "Female", "Male", or "Undetermined"
+    """
+    # Thresholds based on expected ratios
+    # Males: X/A ≈ 0.5, Y/A > 0.1
+    # Females: X/A ≈ 1.0, Y/A ≈ 0
+    
+    if rate_x >= 0.8 and rate_y < 0.05:
+        return "Female"
+    elif 0.35 <= rate_x <= 0.65 and rate_y >= 0.1:
+        return "Male"
+    else:
+        return "Undetermined"
 
 def CalcErrors(AutSnps, XSnps, YSnps, NrAut, NrX, NrY):
     SNPs=[AutSnps, XSnps, YSnps]
@@ -56,7 +78,6 @@ if args.SampleList != None:
     NrAut  = [0 for x in range(len(Names))]
     NrX    = [0 for x in range(len(Names))]
     NrY    = [0 for x in range(len(Names))]
-    # Totals = [0 for x in range(len(Names))]
     
 Reads={}
 AutSnps=0
@@ -76,7 +97,6 @@ for line in args.Input:
             NrAut  = [0 for x in range(len(Names))]
             NrX    = [0 for x in range(len(Names))]
             NrY    = [0 for x in range(len(Names))]
-            # Totals = [0 for x in range(len(Names))]
             continue
         else:
             continue
@@ -88,7 +108,6 @@ for line in args.Input:
     if Chrom == "X":
         XSnps+=1
     for x in Names:
-        # Totals[Names[x]]+=depths[Names[x]]
         if Chrom != "Y" and Chrom != "X":
             NrAut[Names[x]]+=depths[Names[x]]
         if Chrom == "Y":
@@ -102,17 +121,27 @@ Input depth file is empty. Stopping execution.
 
 Please ensure you are using a bed file compatible with your reference genome coordinates.""")
 
-# SortNames=OrderedDict(sorted(Names.items(), key=lambda t: t[1]))
-print ("#Sample", "#SnpsAut", "#SNPsX", "#SnpsY", "NrAut", "NrX", "NrY", "x-rate", "y-rate", "Err(x-rate)", "Err(y-rate)", sep="\t", file=sys.stdout)
+print ("#Sample", "#SnpsAut", "#SNPsX", "#SnpsY", "NrAut", "NrX", "NrY", "x-rate", "y-rate", "Err(x-rate)", "Err(y-rate)", "Sex", sep="\t", file=sys.stdout)
 data=OrderedDict()
-# Add in proper tool version info to JSON output
 data['Metadata'] = {'tool_name' : "Sex.DetERRmine", "version" : VERSION}
 for Ind in Names:
     rate,rateErr=CalcErrors(AutSnps, XSnps, YSnps, NrAut[Names[Ind]], NrX[Names[Ind]], NrY[Names[Ind]])
-    data[Ind] = {"Snps Autosomal" : AutSnps, "XSnps" : XSnps, "YSnps": YSnps, "NR Aut" : NrAut[Names[Ind]],"NrX": NrX[Names[Ind]], "NrY": NrY[Names[Ind]], "RateX" : rate["X"], "RateY": rate["Y"], "RateErrX" : rateErr["X"], "RateErrY" : rateErr["Y"]}
-    print (Ind, AutSnps, XSnps, YSnps, NrAut[Names[Ind]], NrX[Names[Ind]], NrY[Names[Ind]], rate["X"], rate["Y"], rateErr["X"], rateErr["Y"], sep="\t", file=sys.stdout)
+    sex_estimate = determine_sex(rate["X"], rate["Y"])
+    data[Ind] = {
+        "Snps Autosomal" : AutSnps, 
+        "XSnps" : XSnps, 
+        "YSnps": YSnps, 
+        "NR Aut" : NrAut[Names[Ind]],
+        "NrX": NrX[Names[Ind]], 
+        "NrY": NrY[Names[Ind]], 
+        "RateX" : rate["X"], 
+        "RateY": rate["Y"], 
+        "RateErrX" : rateErr["X"], 
+        "RateErrY" : rateErr["Y"],
+        "Sex": sex_estimate
+    }
+    print (Ind, AutSnps, XSnps, YSnps, NrAut[Names[Ind]], NrX[Names[Ind]], NrY[Names[Ind]], 
+           rate["X"], rate["Y"], rateErr["X"], rateErr["Y"], sex_estimate, sep="\t", file=sys.stdout)
     
-#Debugging purposes only
-#print(json.dumps(data, indent=4, sort_keys=True))
 with open('sexdeterrmine.json', 'w') as outfile:
     json.dump(data, outfile)
